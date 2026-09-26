@@ -1,0 +1,37 @@
+name: Build DaliMix
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DPA_COPY_AFTER_BUILD=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Ad-hoc code sign (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --deep -s - "build/DaliMix_artefacts/Release/VST3/DaliMix.vst3"
+          codesign --force --deep -s - "build/DaliMix_artefacts/Release/AU/DaliMix.component"
+
+      - name: Upload plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: DaliMix-${{ runner.os }}
+          path: |
+            build/DaliMix_artefacts/Release/VST3
+            build/DaliMix_artefacts/Release/AU
